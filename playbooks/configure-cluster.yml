@@ -1,8 +1,8 @@
 ---
-- hosts: cluster
-  gather_facts: yes
-  become: yes
+- hosts: all
+  become: true
   tasks:
+
     - name: update Debian
       ansible.builtin.apt:
         update_cache: yes
@@ -13,6 +13,10 @@
         update_cache: yes
       when: ansible_os_family == 'RedHat'
 
+- hosts: cluster
+  gather_facts: yes
+  become: yes
+  tasks:
     - ansible.builtin.package:
         name:
             - docker
@@ -50,13 +54,11 @@
     - ansible.builtin.shell: "echo $(lsb_release -cs)"
       register: dist
 
-
     - name: Add Docker Repository
       apt_repository:
         repo: deb https://download.docker.com/linux/ubuntu "{{ dist.stdout }}" stable
         state: present
       become: yes
-
 
     - name: update Debian
       ansible.builtin.apt:
@@ -68,10 +70,8 @@
         update_cache: yes
       when: ansible_os_family == 'RedHat'
 
-
     - ansible.builtin.shell: "dpkg --configure -a"
       become: yes
-
 
     - package:
         name:
@@ -109,16 +109,13 @@
     - name: Add join cmd to dummy host
       ansible.builtin.add_host:
         name: "join_cmd_holder"
-        cmd: "{{ join_cmd.stdout }}"
+        ansible_host: "localhost"
+        join_cmd: "{{ join_cmd.stdout }}"
 
 - hosts: worker
   tasks:
-    - name: print join cmd
-      ansible.builtin.debug:
-        msg: "[Worker] HERE IS THE DEBUG {{ hostvars['join_cmd_holder']['cmd'] }}"
-
     - name: join
-      command: "sudo {{hostvars['join_cmd_holder']['cmd']}}"
+      command: "sudo {{ hostvars['join_cmd_holder']['join_cmd'] }}"
 
 - hosts: master
   tasks:
